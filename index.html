@@ -432,7 +432,7 @@
       <p class="text-sub" style="margin-bottom:12px">シフト種目のキーワードに応じて件名・色を設定します</p>
       <div class="rule-labels">
         <span>キーワード</span>
-        <span>件倍</span>
+        <span>件名</span>
         <span>色</span>
         <span></span>
       </div>
@@ -461,7 +461,7 @@
     <!-- API Key -->
     <div class="card">
       <div class="card-title">🔑 APIキー</div>
-      <p class="text-sub" style="margin-bottom:10px">Anthropic API 設定を入力してください。localStorageに保存されます。</p>
+      <p class="text-sub" style="margin-bottom:10px">Anthropic API キーを入力してください。localStorageに保存されます。</p>
       <div class="form-row">
         <label for="apiKeyInput">Anthropic API Key</label>
         <div class="api-key-wrap">
@@ -772,7 +772,7 @@ async function startAnalyze() {
     const result = await callClaude(apiKey, name);
 
     if (!result.name_found) {
-      showAlert('step1', `「${name~」がシフト表内に見つかりませんでした。名前の表記を確認してください。`);
+      showAlert('step1', `「${name}」がシフト表内に見つかりませんでした。名前の表記を確認してください。`);
       return;
     }
     if (!result.shifts || result.shifts.length === 0) {
@@ -839,7 +839,7 @@ async function callClaude(apiKey, myName) {
 - shift_typeはセル内の種目名や内容をそのまま記載
 - 時間不明はnull
 - 休みは含めない
-- dateはYYYY-MM-DD形式`
+- dateはYYYY-MM-DT形式`
           }
         ]
       }]
