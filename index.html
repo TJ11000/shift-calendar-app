@@ -432,7 +432,7 @@
       <p class="text-sub" style="margin-bottom:12px">シフト種目のキーワードに応じて件名・色を設定します</p>
       <div class="rule-labels">
         <span>キーワード</span>
-        <span>件名</span>
+        <span>件倍</span>
         <span>色</span>
         <span></span>
       </div>
@@ -461,7 +461,7 @@
     <!-- API Key -->
     <div class="card">
       <div class="card-title">🔑 APIキー</div>
-      <p class="text-sub" style="margin-bottom:10px">Anthropic API キーを入力してください。localStorageに保存されます。</p>
+      <p class="text-sub" style="margin-bottom:10px">Anthropic API 設定を入力してください。localStorageに保存されます。</p>
       <div class="form-row">
         <label for="apiKeyInput">Anthropic API Key</label>
         <div class="api-key-wrap">
@@ -772,7 +772,7 @@ async function startAnalyze() {
     const result = await callClaude(apiKey, name);
 
     if (!result.name_found) {
-      showAlert('step1', `「${name}」がシフト表内に見つかりませんでした。名前の表記を確認してください。`);
+      showAlert('step1', `「${name~」がシフト表内に見つかりませんでした。名前の表記を確認してください。`);
       return;
     }
     if (!result.shifts || result.shifts.length === 0) {
@@ -814,7 +814,7 @@ async function callClaude(apiKey, myName) {
       'anthropic-dangerous-direct-browser-calls': 'true'
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1500,
       messages: [{
         role: "user",
@@ -827,7 +827,7 @@ async function callClaude(apiKey, myName) {
             type: "text",
             text: `シフト表の画像から「${myName}」（部分一致可）のシフトを抽出してください。
 
-以下のJSONのみ返してください（他のテキスト不要）：
+以下はJSONのみ返してください（他のテキスト不要）：
 {
   "name_found": true,
   "shifts": [
@@ -899,7 +899,7 @@ function renderStep2() {
 
   const active = shifts.filter(s => !s.excluded).length;
   document.getElementById('alertStep2InfoMsg').textContent =
-    `${shifts.length}䭻のシフトが見つかりました。登録対象：${active}件`;
+    `${shifts.length}件のシフトが見つかりました。登録対象：${active}件`;
   document.getElementById('alertStep2Info').classList.add('show');
 }
 
@@ -1017,7 +1017,7 @@ async function registerToCalendar(apiKey, calendarId, event) {
       'anthropic-dangerous-direct-browser-calls': 'true'
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1000,
       messages: [{
         role: "user",
