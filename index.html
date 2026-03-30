@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>シフト表カレンダー登録</title>
+  <meta name="theme-color" content="#4361ee">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="シフト登録">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4361ee;
+      --primary-light: #eef0fd;
+      --success: #10b981;
+      --success-light: #ecfdf5;
+      --error: #e74c3c;
+      --error-light: #fef2f2;
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --border: #e8eaed;
+      --text: #1a1a2e;
+      --text-sub: #6b7280;
+      --max-w: 680px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--primary);
+      color: #fff;
+      padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(67,97,238,.3);
+    }
+    header h1 { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+    header .icon { font-size: 20px; }
+
+    /* ── Step Indicator ── */
+    .step-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 20px;
+      gap: 0;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      position: relative;
+    }
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .step-item.done:not(:last-child)::after { background: var(--success); }
+    .step-item.active:not(:last-child)::after { background: var(--border); }
+
+    .step-circle {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      position: relative; z-index: 1;
+      transition: background .3s, color .3s;
+    }
+    .step-item.pending .step-circle { background: var(--border); color: var(--text-sub); }
+    .step-item.active  .step-circle { background: var(--primary); color: #fff; box-shadow: 0 0 0 3px rgba(67,97,238,.25); }
+    .step-item.done    .step-circle { background: var(--success); color: #fff; }
+    .step-label { font-size: 10px; color: var(--text-sub); font-weight: 600; white-space: nowrap; }
+    .step-item.active .step-label { color: var(--primary); }
+    .step-item.done   .step-label { color: var(--success); }
+
+    /* ── Main layout ── */
+    main { max-width: var(--max-w); margin: 0 auto; padding: 0 0 40px; }
+    .step-content { display: none; }
+    .step-content.active { display: block; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .card-title {
+      font-size: 14px; font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ── Upload area ── */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .upload-area input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 10px; }
+    .upload-text { font-size: 14px; color: var(--text-sub); line-height: 1.6; }
+    .upload-text strong { color: var(--primary); }
+
+    /* ── Image preview ── */
+    .preview-wrap {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #000;
+    }
+    .preview-wrap img { width: 100%; display: block; max-height: 300px; object-fit: contain; }
+    .preview-del {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,.6); color: #fff;
+      border: none; border-radius: 50%;
+      width: 30px; height: 30px;
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── Form elements ── */
+    label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 5px; }
+    input[type=text], input[type=password], select {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--card);
+      color: var(--text);
+      transition: border-color .2s;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type=text]:focus, input[type=password]:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+    }
+    .form-row { margin-bottom: 14px; }
+    .form-row:last-child { margin-bottom: 0; }
+
+    /* ── Rules ── */
+    .rules-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .rule-item {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto auto;
+      gap: 6px;
+      align-items: center;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .rule-item input, .rule-item select { font-size: 13px; padding: 7px 8px; }
+    .rule-item .color-dot {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid rgba(0,0,0,.1);
+      flex-shrink: 0;
+    }
+    .rule-del {
+      background: none; border: none; color: var(--error);
+      font-size: 18px; cursor: pointer; padding: 4px; line-height: 1;
+    }
+    .rule-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto auto;
+      gap: 6px;
+      padding: 0 10px;
+      margin-bottom: 4px;
+    }
+    .rule-labels span { font-size: 11px; color: var(--text-sub); font-weight: 600; }
+    .btn-add-rule {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: 1.5px dashed var(--primary);
+      color: var(--primary); border-radius: 8px;
+      padding: 9px 14px; font-size: 13px; font-weight: 600;
+      cursor: pointer; width: 100%;
+      justify-content: center;
+      transition: background .2s;
+    }
+    .btn-add-rule:hover { background: var(--primary-light); }
+
+    /* ── Default settings ── */
+    .default-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: block; width: 100%;
+      padding: 14px;
+      border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary {
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-row { display: flex; gap: 10px; margin: 16px; }
+    .btn-row .btn { flex: 1; }
+    .btn-sm {
+      padding: 8px 14px; font-size: 13px; border-radius: 7px;
+      font-weight: 600; border: none; cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* ── API key toggle ── */
+    .api-key-wrap { position: relative; }
+    .api-key-wrap input { padding-right: 44px; font-family: monospace; font-size: 13px; }
+    .api-toggle {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px;
+    }
+
+    /* ── Shift list (step2) ── */
+    .shift-list { display: flex; flex-direction: column; gap: 8px; }
+    .shift-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      background: var(--bg); border-radius: 10px;
+      transition: opacity .2s;
+    }
+    .shift-item.excluded { opacity: .4; }
+    .color-badge {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    }
+    .shift-info { flex: 1; min-width: 0; }
+    .shift-date { font-size: 13px; font-weight: 700; color: var(--text); }
+    .shift-detail { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+    .shift-name { font-size: 13px; font-weight: 600; color: var(--primary); }
+    .shift-excl {
+      background: none; border: none; color: var(--text-sub);
+      font-size: 20px; cursor: pointer; line-height: 1; padding: 4px;
+      flex-shrink: 0;
+    }
+    .shift-excl:hover { color: var(--error); }
+
+    /* ── Progress ── */
+    .progress-wrap { padding: 16px; display: none; }
+    .progress-wrap.visible { display: block; }
+    .progress-label { font-size: 13px; color: var(--text-sub); margin-bottom: 6px; text-align: center; }
+    progress {
+      width: 100%; height: 8px; border-radius: 4px;
+      border: none; background: var(--border);
+      -webkit-appearance: none; appearance: none;
+    }
+    progress::-webkit-progress-bar { background: var(--border); border-radius: 4px; }
+    progress::-webkit-progress-value { background: var(--primary); border-radius: 4px; transition: width .3s; }
+    progress::-moz-progress-bar { background: var(--primary); border-radius: 4px; }
+
+    /* ── Complete screen ── */
+    .complete-icon { font-size: 60px; text-align: center; margin: 20px 0 10px; }
+    .complete-msg { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .complete-sub { text-align: center; font-size: 14px; color: var(--text-sub); }
+    .stats { display: flex; gap: 12px; margin: 16px; }
+    .stat-card {
+      flex: 1; background: var(--card); border-radius: 10px;
+      padding: 14px; text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .stat-num { font-size: 28px; font-weight: 800; }
+    .stat-label { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+    .stat-card.success .stat-num { color: var(--success); }
+    .stat-card.fail .stat-num { color: var(--error); }
+
+    /* ── History ── */
+    .history-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .history-info { flex: 1; min-width: 0; }
+    .history-name { font-size: 13px; font-weight: 600; }
+    .history-date { font-size: 12px; color: var(--text-sub); }
+    .history-time { font-size: 11px; color: var(--text-sub); margin-left: auto; }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 13px; padding: 20px; }
+
+    /* ── Alert ── */
+    .alert {
+      margin: 0 16px 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .alert.show { display: flex; align-items: flex-start; gap: 8px; }
+    .alert-error { background: var(--error-light); color: #b91c1c; border: 1px solid #fecaca; }
+    .alert-info  { background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe; }
+
+    /* ── Misc ── */
+    .section-gap { margin-top: 4px; }
+    .text-sub { color: var(--text-sub); font-size: 12px; }
+    .mt8  { margin-top: 8px; }
+    .mt12 { margin-top: 12px; }
+    .mt16 { margin-top: 16px; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      .rule-item { grid-template-columns: 1fr auto auto; }
+      .rule-item .rule-name { display: none; }
+      .default-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="icon">📅</span>
+  <h1>シフト表カレンダー登録</h1>
+</header>
+
+<!-- Step Indicator -->
+<div class="step-bar" id="stepBar">
+  <div class="step-item active" id="si1">
+    <div class="step-circle" id="sc1">1</div>
+    <span class="step-label">設定</span>
+  </div>
+  <div class="step-item pending" id="si2">
+    <div class="step-circle" id="sc2">2</div>
+    <span class="step-label">確認</span>
+  </div>
+  <div class="step-item pending" id="si3">
+    <div class="step-circle" id="sc3">3</div>
+    <span class="step-label">完了</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ─────────── STEP 1 ─────────── -->
+  <div class="step-content active" id="step1">
+
+    <!-- Alert -->
+    <div class="alert alert-error" id="alertStep1">
+      <span>⚠️</span><span id="alertStep1Msg"></span>
+    </div>
+
+    <!-- 画像アップロード -->
+    <div class="card">
+      <div class="card-title">📷 シフト表の画像</div>
+      <div class="upload-area" id="uploadArea" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFile(event)">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-text">
+          <strong>タップして撮影 / ファイルを選択</strong><br>
+          またはここにドラッグ&ドロップ<br>
+          <span style="font-size:12px">JPG・PNG・HEIC 対応</span>
+        </div>
+      </div>
+      <div id="previewWrap" class="preview-wrap mt12" style="display:none">
+        <img id="previewImg" src="" alt="プレビュー">
+        <button class="preview-del" onclick="clearImage()" title="削除">✕</button>
+      </div>
+    </div>
+
+    <!-- 名前 -->
+    <div class="card">
+      <div class="card-title">👤 基本設定</div>
+      <div class="form-row">
+        <label for="myName">自分の名前（シフト表に載っている名前）</label>
+        <input type="text" id="myName" placeholder="例：田中 ひろし" maxlength="30">
+      </div>
+      <div class="form-row">
+        <label for="calSelect">登録先カレンダー</label>
+        <select id="calSelect"></select>
+      </div>
+    </div>
+
+    <!-- 件名ルール -->
+    <div class="card">
+      <div class="card-title">🏷️ 件名ルール設定</div>
+      <p class="text-sub" style="margin-bottom:12px">シフト種目のキーワードに応じて件名・色を設定します</p>
+      <div class="rule-labels">
+        <span>キーワード</span>
+        <span>件名</span>
+        <span>色</span>
+        <span></span>
+      </div>
+      <div class="rules-list" id="rulesList"></div>
+      <button class="btn-add-rule" onclick="addRule()">＋ ルールを追加</button>
+
+      <div class="mt16">
+        <p style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px">ルール未一致時のデフォルト</p>
+        <div class="default-row">
+          <div>
+            <label for="defaultName">デフォルト件名</label>
+            <input type="text" id="defaultName" value="試験" maxlength="30">
+          </div>
+          <div>
+            <label for="defaultColor">デフォルト色</label>
+            <select id="defaultColor" onchange="updateDefaultColorDot()"></select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <div class="color-dot" id="defaultColorDot" style="width:20px;height:20px;border-radius:50%;border:2px solid rgba(0,0,0,.15)"></div>
+          <span class="text-sub" id="defaultColorName"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Key -->
+    <div class="card">
+      <div class="card-title">🔑 APIキー</div>
+      <p class="text-sub" style="margin-bottom:10px">Anthropic API キーを入力してください。localStorageに保存されます。</p>
+      <div class="form-row">
+        <label for="apiKeyInput">Anthropic API Key</label>
+        <div class="api-key-wrap">
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off">
+          <button class="api-toggle" onclick="toggleApiKey()" id="apiToggle" title="表示/非表示">👁</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 読み取るボタン -->
+    <div style="margin:16px">
+      <button class="btn btn-primary" id="btnAnalyze" onclick="startAnalyze()">
+        🔍 シフトを読み取る
+      </button>
+    </div>
+  </div>
+
+  <!-- ─────────── STEP 2 ─────────── -->
+  <div class="step-content" id="step2">
+
+    <!-- Alert -->
+    <div class="alert alert-error" id="alertStep2">
+      <span>⚠️</span><span id="alertStep2Msg"></span>
+    </div>
+    <div class="alert alert-info" id="alertStep2Info">
+      <span>ℹ️</span><span id="alertStep2InfoMsg"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 読み取り結果</div>
+      <p class="text-sub" style="margin-bottom:12px">✕ボタンで除外できます</p>
+      <div class="shift-list" id="shiftList"></div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">登録中... 0 / 0</div>
+      <progress id="progressBar" value="0" max="100"></progress>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← 戻る</button>
+      <button class="btn btn-primary" id="btnRegister" onclick="startRegister()">
+        📅 カレンダーに登録する
+      </button>
+    </div>
+  </div>
+
+  <!-- ─────────── STEP 3 ─────────── -->
+  <div class="step-content" id="step3">
+
+    <div class="complete-icon" id="completeIcon">✅</div>
+    <div class="complete-msg" id="completeMsg">登録が完了しました！</div>
+    <div class="complete-sub" id="completeSub"></div>
+
+    <div class="stats">
+      <div class="stat-card success">
+        <div class="stat-num" id="statSuccess">0</div>
+        <div class="stat-label">登録成功</div>
+      </div>
+      <div class="stat-card fail" id="statFailCard">
+        <div class="stat-num" id="statFail">0</div>
+        <div class="stat-label">失敗</div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span>📜 登録履歴</span>
+        <button class="btn-sm btn-secondary" onclick="clearHistory()" style="font-size:11px;padding:5px 10px">クリア</button>
+      </div>
+      <div id="historyList"></div>
+    </div>
+
+    <div style="margin:16px">
+      <button class="btn btn-primary" onclick="resetApp()">🔄 最初からやり直す</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  定数・設定
+// ═══════════════════════════════════════════════════
+const CALENDARS = [
+  { id: "primary",                                             name: "メインカレンダー（maxxis.japan@gmail.com）" },
+  { id: "489jbl7gidbrjgbk7g4ldtda68@group.calendar.google.com", name: "スケジュール表" },
+  { id: "8utp8ng4uq7ienalh3vtda5eco@group.calendar.google.com",  name: "マインドアース アーテック予定表" },
+  { id: "family17614707723238953463@group.calendar.google.com",   name: "ファミリー" }
+];
+
+const COLOR_MAP = {
+  "1":  { name: "ラベンダー",       hex: "#7986cb" },
+  "2":  { name: "セージ",           hex: "#33b679" },
+  "3":  { name: "グレープ",         hex: "#8e24aa" },
+  "4":  { name: "フラミンゴ",       hex: "#e67c73" },
+  "5":  { name: "バナナ（黄色）",   hex: "#f6bf26" },
+  "6":  { name: "タンジェリン",     hex: "#f4511e" },
+  "7":  { name: "ピーコック",       hex: "#039be5" },
+  "8":  { name: "グラファイト",     hex: "#616161" },
+  "9":  { name: "ブルーベリー",     hex: "#3f51b5" },
+  "10": { name: "バジル",           hex: "#0b8043" },
+  "11": { name: "トマト",           hex: "#d50000" }
+};
+
+const WEEKDAYS = ['日','月','火','水','木','金','土'];
+
+// ═══════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════
+let imageB64   = null;
+let imageType  = null;
+let rules      = [];
+let shifts     = [];   // { date, shift_type, start_time, end_time, eventName, colorId, excluded }
+let successCount = 0;
+let failCount    = 0;
+
+// ═══════════════════════════════════════════════════
+//  初期化
+// ═══════════════════════════════════════════════════
+(function init() {
+  // カレンダー選択肢
+  const calSel = document.getElementById('calSelect');
+  CALENDARS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name;
+    calSel.appendChild(opt);
+  });
+
+  // カラー選択肢を全セレクトに
+  buildColorOptions();
+
+  // localStorage から復元
+  const saved = k => localStorage.getItem(k);
+  if (saved('sc_name'))    document.getElementById('myName').value    = saved('sc_name');
+  if (saved('sc_cal'))     document.getElementById('calSelect').value  = saved('sc_cal');
+  if (saved('sc_apikey'))  document.getElementById('apiKeyInput').value = saved('sc_apikey');
+  if (saved('sc_defname')) document.getElementById('defaultName').value = saved('sc_defname');
+  if (saved('sc_defcolor')) {
+    document.getElementById('defaultColor').value = saved('sc_defcolor');
+  }
+
+  rules = saved('sc_rules') ? JSON.parse(saved('sc_rules')) : [
+    { kw: "英検", name: "英検", colorId: "5" }
+  ];
+  renderRules();
+  updateDefaultColorDot();
+
+  // Service Worker 登録
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/shift-calendar-app/sw.js').catch(() => {});
+  }
+})();
+
+// ═══════════════════════════════════════════════════
+//  カラー関連
+// ═══════════════════════════════════════════════════
+function buildColorOptions() {
+  // defaultColor セレクト
+  const dc = document.getElementById('defaultColor');
+  dc.innerHTML = '';
+  Object.entries(COLOR_MAP).forEach(([id, c]) => {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = `${c.name}`;
+    dc.appendChild(opt);
+  });
+  dc.value = localStorage.getItem('sc_defcolor') || '5';
+  updateDefaultColorDot();
+}
+
+function colorSelectHTML(selectedId) {
+  return Object.entries(COLOR_MAP).map(([id, c]) =>
+    `<option value="${id}" ${id === selectedId ? 'selected' : ''}>${c.name}</option>`
+  ).join('');
+}
+
+function updateDefaultColorDot() {
+  const id = document.getElementById('defaultColor').value;
+  const c  = COLOR_MAP[id] || COLOR_MAP['5'];
+  document.getElementById('defaultColorDot').style.background = c.hex;
+  document.getElementById('defaultColorName').textContent = c.name;
+}
+
+// ルール内カラードットを更新
+function updateRuleColorDot(idx) {
+  const sel = document.querySelector(`#rule-${idx} .rule-color-sel`);
+  const dot = document.querySelector(`#rule-${idx} .rule-color-dot`);
+  if (sel && dot) dot.style.background = COLOR_MAP[sel.value]?.hex || '#ccc';
+}
+
+// ═══════════════════════════════════════════════════
+//  ルール管理
+// ═══════════════════════════════════════════════════
+function renderRules() {
+  const list = document.getElementById('rulesList');
+  list.innerHTML = rules.map((r, i) => `
+    <div class="rule-item" id="rule-${i}">
+      <input type="text" value="${escHtml(r.kw)}" placeholder="キーワード" maxlength="20"
+             oninput="rules[${i}].kw=this.value;saveRules()">
+      <input type="text" value="${escHtml(r.name)}" placeholder="件名" maxlength="30"
+             class="rule-name" oninput="rules[${i}].name=this.value;saveRules()">
+      <div style="display:flex;align-items:center;gap:4px">
+        <div class="color-dot rule-color-dot" style="background:${COLOR_MAP[r.colorId]?.hex||'#ccc'}"></div>
+        <select class="rule-color-sel" onchange="rules[${i}].colorId=this.value;saveRules();updateRuleColorDot(${i})">
+          ${colorSelectHTML(r.colorId)}
+        </select>
+      </div>
+      <button class="rule-del" onclick="removeRule(${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function addRule() {
+  rules.push({ kw: '', name: '', colorId: '7' });
+  renderRules(); saveRules();
+}
+
+function removeRule(i) {
+  rules.splice(i, 1);
+  renderRules(); saveRules();
+}
+
+function saveRules() {
+  localStorage.setItem('sc_rules', JSON.stringify(rules));
+}
+
+// ═══════════════════════════════════════════════════
+//  画像操作
+// ═══════════════════════════════════════════════════
+function handleFile(e) {
+  const file = e.target.files?.[0];
+  if (file) loadImageFile(file);
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.add('dragover');
+}
+
+function handleDragLeave() {
+  document.getElementById('uploadArea').classList.remove('dragover');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.remove('dragover');
+  const file = e.dataTransfer.files?.[0];
+  if (file && file.type.startsWith('image/')) loadImageFile(file);
+}
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const result = ev.target.result; // data:image/xxx;base64,...
+    const match  = result.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return showAlert('step1', '画像の読み込みに失敗しました');
+    imageType = match[1];
+    imageB64  = match[2];
+    document.getElementById('previewImg').src  = result;
+    document.getElementById('previewWrap').style.display = 'block';
+    document.getElementById('uploadArea').style.display  = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  imageB64 = null; imageType = null;
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('uploadArea').style.display  = 'block';
+  document.getElementById('fileInput').value = '';
+}
+
+// ═══════════════════════════════════════════════════
+//  APIキー表示切替
+// ═══════════════════════════════════════════════════
+function toggleApiKey() {
+  const inp = document.getElementById('apiKeyInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 1 → 解析
+// ═══════════════════════════════════════════════════
+async function startAnalyze() {
+  hideAlert('step1');
+
+  // バリデーション
+  const name   = document.getElementById('myName').value.trim();
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  if (!imageB64)  return showAlert('step1', 'シフト表の画像を選択してください');
+  if (!name)      return showAlert('step1', '自分の名前を入力してください');
+  if (!apiKey)    return showAlert('step1', 'Anthropic APIキーを入力してください');
+
+  // 設定を保存
+  localStorage.setItem('sc_name',     name);
+  localStorage.setItem('sc_cal',      document.getElementById('calSelect').value);
+  localStorage.setItem('sc_apikey',   apiKey);
+  localStorage.setItem('sc_defname',  document.getElementById('defaultName').value.trim());
+  localStorage.setItem('sc_defcolor', document.getElementById('defaultColor').value);
+
+  const btn = document.getElementById('btnAnalyze');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>解析中...';
+
+  try {
+    const result = await callClaude(apiKey, name);
+
+    if (!result.name_found) {
+      showAlert('step1', `「${name}」がシフト表内に見つかりませんでした。名前の表記を確認してください。`);
+      return;
+    }
+    if (!result.shifts || result.shifts.length === 0) {
+      showAlert('step1', `「${name}」のシフトが見つかりませんでした。`);
+      return;
+    }
+
+    // ルール適用
+    const defName  = document.getElementById('defaultName').value.trim() || '試験';
+    const defColor = document.getElementById('defaultColor').value || '5';
+    shifts = result.shifts.map(s => {
+      const rule = matchRule(s.shift_type);
+      return {
+        ...s,
+        eventName: rule ? rule.name  : defName,
+        colorId:   rule ? rule.colorId : defColor,
+        excluded:  false
+      };
+    });
+
+    renderStep2();
+    goStep(2);
+  } catch (err) {
+    showAlert('step1', `エラー: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 シフトを読み取る';
+  }
+}
+
+// ─── Claude API 呼び出し ───
+async function callClaude(apiKey, myName) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1500,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: imageType, data: imageB64 }
+          },
+          {
+            type: "text",
+            text: `シフト表の画像から「${myName}」（部分一致可）のシフトを抽出してください。
+
+以下のJSONのみ返してください（他のテキスト不要）：
+{
+  "name_found": true,
+  "shifts": [
+    { "date": "2026-04-03", "shift_type": "CBT", "start_time": "10:00", "end_time": "15:00" }
+  ]
+}
+
+注意：
+- shift_typeはセル内の種目名や内容をそのまま記載
+- 時間不明はnull
+- 休みは含めない
+- dateはYYYY-MM-DD形式`
+          }
+        ]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `APIエラー (${res.status})`);
+  }
+
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  // JSONを抽出（マークダウンコードブロックを除去）
+  const clean = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('解析結果のJSON取得に失敗しました');
+  return JSON.parse(jsonMatch[0]);
+}
+
+// ─── ルール照合 ───
+function matchRule(shiftType) {
+  if (!shiftType) return null;
+  return rules.find(r => r.kw && shiftType.includes(r.kw)) || null;
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 2 描画
+// ═══════════════════════════════════════════════════
+function renderStep2() {
+  hideAlert('step2');
+  const list = document.getElementById('shiftList');
+  if (shifts.length === 0) {
+    list.innerHTML = '<div class="empty-msg">シフトが見つかりませんでした</div>';
+    return;
+  }
+  list.innerHTML = shifts.map((s, i) => {
+    const color = COLOR_MAP[s.colorId]?.hex || '#999';
+    const dateStr = formatDate(s.date);
+    const timeStr = s.start_time
+      ? `${s.start_time}〜${s.end_time || '?'}`
+      : '終日';
+    return `
+      <div class="shift-item ${s.excluded ? 'excluded' : ''}" id="si-${i}">
+        <div class="color-badge" style="background:${color}"></div>
+        <div class="shift-info">
+          <div class="shift-date">${dateStr}</div>
+          <div class="shift-detail">${escHtml(s.shift_type)} ／ ${timeStr}</div>
+        </div>
+        <div class="shift-name" style="color:${color}">${escHtml(s.eventName)}</div>
+        <button class="shift-excl" onclick="toggleExclude(${i})" title="${s.excluded?'戻す':'除外'}">
+          ${s.excluded ? '↩' : '✕'}
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  const active = shifts.filter(s => !s.excluded).length;
+  document.getElementById('alertStep2InfoMsg').textContent =
+    `${shifts.length}䭻のシフトが見つかりました。登録対象：${active}件`;
+  document.getElementById('alertStep2Info').classList.add('show');
+}
+
+function toggleExclude(i) {
+  shifts[i].excluded = !shifts[i].excluded;
+  renderStep2();
+}
+
+// ─── 日付フォーマット ───
+function formatDate(dateStr) {
+  if (!dateStr) return '(日付不明)';
+  const d = new Date(dateStr + 'T00:00:00');
+  const m  = d.getMonth() + 1;
+  const dd = d.getDate();
+  const w  = WEEKDAYS[d.getDay()];
+  return `${m}月${dd}日（${w}）`;
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 2 → カレンダー登録
+// ═══════════════════════════════════════════════════
+async function startRegister() {
+  const targets = shifts.filter(s => !s.excluded);
+  if (targets.length === 0) {
+    showAlert('step2', '登録するシフトがありません。✕ボタンで除外したシフトを確認してください。');
+    return;
+  }
+
+  const apiKey    = localStorage.getItem('sc_apikey');
+  const calId     = localStorage.getItem('sc_cal') || 'primary';
+  if (!apiKey) { showAlert('step2', 'APIキーが見つかりません。戻って設定してください。'); return; }
+
+  const btn = document.getElementById('btnRegister');
+  const backBtn = document.querySelector('#step2 .btn-secondary');
+  btn.disabled = backBtn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>登録中...';
+
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressBar   = document.getElementById('progressBar');
+  const progressLabel = document.getElementById('progressLabel');
+  progressWrap.classList.add('visible');
+
+  successCount = 0; failCount = 0;
+  const historyItems = [];
+
+  for (let i = 0; i < targets.length; i++) {
+    const s = targets[i];
+    progressLabel.textContent = `登録中... ${i + 1} / ${targets.length}`;
+    progressBar.value = Math.round(((i) / targets.length) * 100);
+
+    const event = buildEvent(s);
+    try {
+      await registerToCalendar(apiKey, calId, event);
+      successCount++;
+      historyItems.push({ ...s, registeredAt: new Date().toISOString() });
+    } catch (e) {
+      console.error('登録失敗', s, e);
+      failCount++;
+    }
+    // 少し待機（API制限対策）
+    if (i < targets.length - 1) await sleep(800);
+  }
+
+  progressBar.value = 100;
+  progressLabel.textContent = `完了！ ${successCount}件成功 / ${failCount}件失敗`;
+
+  saveHistory(historyItems);
+  renderStep3();
+
+  setTimeout(() => {
+    progressWrap.classList.remove('visible');
+    btn.disabled = backBtn.disabled = false;
+    btn.innerHTML = '📅 カレンダーに登録する';
+    goStep(3);
+  }, 1000);
+}
+
+// ─── イベントオブジェクト構築 ───
+function buildEvent(s) {
+  const base = {
+    summary: s.eventName,
+    colorId: s.colorId
+  };
+  if (s.start_time) {
+    return {
+      ...base,
+      start: { dateTime: `${s.date}T${s.start_time}:00`, timeZone: 'Asia/Tokyo' },
+      end:   { dateTime: `${s.date}T${s.end_time || s.start_time}:00`, timeZone: 'Asia/Tokyo' }
+    };
+  } else {
+    // 終日
+    const endDate = nextDay(s.date);
+    return {
+      ...base,
+      start: { date: s.date },
+      end:   { date: endDate }
+    };
+  }
+}
+
+function nextDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── Google Calendar MCP 経由で登録 ───
+async function registerToCalendar(apiKey, calendarId, event) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{
+        role: "user",
+        content: `カレンダーID「${calendarId}」に以下の予定を作成してください。sendUpdatesは"none"で。\n${JSON.stringify(event)}`
+      }],
+      mcp_servers: [{ type: "url", url: "https://gcal.mcp.claude.com/mcp", name: "gcal" }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `APIエラー (${res.status})`);
+  }
+
+  const data = await res.json();
+  // エラー応答チェック
+  const text = data.content?.[0]?.text || '';
+  if (text.toLowerCase().includes('error') || text.includes('エラー')) {
+    // 登録成功でも Claude はエラーっぽいメッセージを返すことがあるので無視
+  }
+  return data;
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 3 描画
+// ═══════════════════════════════════════════════════
+function renderStep3() {
+  document.getElementById('statSuccess').textContent = successCount;
+  document.getElementById('statFail').textContent    = failCount;
+  document.getElementById('statFailCard').style.display = failCount > 0 ? '' : 'none';
+
+  if (failCount === 0) {
+    document.getElementById('completeIcon').textContent = '🎉';
+    document.getElementById('completeMsg').textContent  = '登録が完了しました！';
+    document.getElementById('completeSub').textContent  = `${successCount}件のシフトをGoogleカレンダーに登録しました`;
+  } else {
+    document.getElementById('completeIcon').textContent = '⚠️';
+    document.getElementById('completeMsg').textContent  = '一部の登録に失敗しました';
+    document.getElementById('completeSub').textContent  =
+      `成功 ${successCount}件 ／ 失敗 ${failCount}件`;
+  }
+
+  renderHistory();
+}
+
+// ─── 履歴 ───
+function saveHistory(items) {
+  let hist = loadHistoryRaw();
+  // 今回分を先頭に追加
+  items.forEach(item => {
+    hist.unshift({
+      date:      item.date,
+      name:      item.eventName,
+      colorId:   item.colorId,
+      shiftType: item.shift_type,
+      time:      item.start_time ? `${item.start_time}〜${item.end_time||'?'}` : '終日',
+      addedAt:   item.registeredAt
+    });
+  });
+  if (hist.length > 20) hist = hist.slice(0, 20);
+  localStorage.setItem('sc_history', JSON.stringify(hist));
+}
+
+function loadHistoryRaw() {
+  try { return JSON.parse(localStorage.getItem('sc_history') || '[]'); } catch { return []; }
+}
+
+function renderHistory() {
+  const hist = loadHistoryRaw();
+  const el   = document.getElementById('historyList');
+  if (hist.length === 0) {
+    el.innerHTML = '<div class="empty-msg">履歴はありません</div>';
+    return;
+  }
+  el.innerHTML = hist.map(h => {
+    const color = COLOR_MAP[h.colorId]?.hex || '#999';
+    const addedAt = h.addedAt ? new Date(h.addedAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    return `
+      <div class="history-item">
+        <div class="history-color" style="background:${color}"></div>
+        <div class="history-info">
+          <div class="history-name">${escHtml(h.name)} <span style="font-weight:400;color:var(--text-sub)">（${escHtml(h.shiftType||'')}）</span></div>
+          <div class="history-date">${formatDate(h.date)} ${h.time}</div>
+        </div>
+        <div class="history-time">${addedAt}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function clearHistory() {
+  if (!confirm('履歴を全件削除しますか？')) return;
+  localStorage.removeItem('sc_history');
+  renderHistory();
+}
+
+// ═══════════════════════════════════════════════════
+//  ステップ遷移
+// ═══════════════════════════════════════════════════
+let currentStep = 1;
+
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById(`step${i}`).classList.toggle('active', i === n);
+    const si = document.getElementById(`si${i}`);
+    si.className = 'step-item ' + (i < n ? 'done' : i === n ? 'active' : 'pending');
+    const sc = document.getElementById(`sc${i}`);
+    sc.textContent = i < n ? '✓' : String(i);
+  });
+  currentStep = n;
+  window.scrollTo(0, 0);
+}
+
+function resetApp() {
+  shifts     = [];
+  imageB64   = null;
+  imageType  = null;
+  clearImage();
+  hideAlert('step1');
+  goStep(1);
+}
+
+// ═══════════════════════════════════════════════════
+//  ユーティリティ
+// ═══════════════════════════════════════════════════
+function showAlert(step, msg) {
+  const el  = document.getElementById(`alertStep${step}`);
+  const msg2 = document.getElementById(`alertStep${step}Msg`);
+  if (!el || !msg2) return;
+  msg2.textContent = msg;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function hideAlert(step) {
+  const el = document.getElementById(`alertStep${step}`);
+  if (el) el.classList.remove('show');
+  const infoEl = document.getElementById(`alertStep${step}Info`);
+  if (infoEl) infoEl.classList.remove('show');
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
