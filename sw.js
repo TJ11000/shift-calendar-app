@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shift-calendar-v1';
+const CACHE_NAME = 'shift-calendar-v2';
 const ASSETS = [
   '/shift-calendar-app/',
   '/shift-calendar-app/index.html',
@@ -7,7 +7,7 @@ const ASSETS = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(CACHE_NAME
       .then(c => c.addAll(ASSETS))
       .then(() => self.skipWaiting())
   );
